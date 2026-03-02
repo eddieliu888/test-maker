@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>唐吉君文教機構 - 英文測驗卷生成系統 (含繪圖解答版)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #0984e3;
+            --bg-color: #dfe6e9;
+            --cell-height: 60px;
+        }
+
+        body {
+            font-family: 'Segoe UI', "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* --- 左側控制區 --- */
+        .control-panel {
+            flex: 0 0 320px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 100%;
+            border-left: 6px solid var(--accent-color);
+            overflow-y: auto;
+        }
+
+        h2 { margin: 0; color: var(--primary-color); font-size: 1.2rem; }
+        .form-group { margin-bottom: 5px; }
+        label { font-weight: 600; color: #636e72; font-size: 0.9rem; margin-bottom: 4px; display: block;}
+        
+        input[type="text"], select, textarea {
+            padding: 10px; border: 1px solid #b2bec3; border-radius: 6px;
+            font-size: 1rem; width: 100%; box-sizing: border-box;
+            font-family: inherit;
+        }
+        
+        textarea.editor-textarea {
+            resize: vertical;
+            min-height: 80px;
+            line-height: 1.4;
+        }
+
+        .btn {
+            padding: 10px; border: none; border-radius: 6px; font-size: 1rem;
+            cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-edit { background: #6c5ce7; color: white; margin-top: 10px; }
+        .btn-edit:hover { background: #5649c0; }
+        
+        .btn-print-dual { 
+            background: #d63031; color: white; margin-top: auto; 
+            border-bottom: 4px solid #c0392b; 
+        }
+        .btn-print-dual:hover { transform: translateY(1px); border-bottom-width: 2px; }
+        
+        .file-actions { display: flex; gap: 5px; margin-top: 5px; }
+        .btn-file { background: #b2bec3; color: #2d3436; font-size: 0.9rem; padding: 8px; }
+        .btn-file:hover { background: #dfe6e9; }
+
+        .toggle-switch {
+            display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
+            background: #fff3e0; padding: 8px; border-radius: 6px; border: 1px solid #ffe0b2;
+            cursor: pointer;
+        }
+        .hint-text { font-size: 0.8rem; color: #666; background: #eee; padding: 5px; border-radius: 4px; line-height: 1.4; margin-top: 5px;}
+
+        /* --- 右側預覽區 --- */
+        .preview-area {
+            flex: 1;
+            background: #636e72;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-radius: 12px;
+            gap: 30px;
+        }
+        
+        .paper {
+            background: white; 
+            width: 210mm; 
+            height: 297mm;
+            padding: 20mm; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3); 
+            box-sizing: border-box; 
+            margin-bottom: 20px; 
+            position: relative;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0; 
+            page-break-after: always; 
+        }
+
+        .paper-content { flex: 1; display: flex; flex-direction: column; }
+
+        /* --- Modal --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: #f5f6fa; width: 95%; height: 95%; border-radius: 15px; display: flex; flex-direction: column; box-shadow: 0 15px 50px rgba(0,0,0,0.4); overflow: hidden; }
+        .modal-header { padding: 15px 25px; background: white; border-bottom: 1px solid #dcdde1; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { flex: 1; padding: 25px; overflow-y: auto; }
+        .modal-footer { padding: 15px 25px; background: white; border-top: 1px solid #dcdde1; text-align: right; }
+
+        .question-card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #b2bec3; position: relative; }
+        .question-card.active { border-left-color: var(--accent-color); }
+        .question-card.type-header { border-left-color: #fdcb6e; background: #fffbf0; }
+        .question-card.type-pagebreak { border-left-color: #2d3436; background: #dfe6e9; border-style: dashed; border-left-style: solid; }
+        .question-card.type-drawBox { border-left-color: #00b894; background: #f0fdf4; }
+        
+        .btn-delete { position: absolute; top: 15px; right: 15px; background: #fab1a0; color: #d63031; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;}
+        
+        .insert-bar { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #dfe6e9; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+        .insert-label { font-size: 0.85rem; color: #636e72; font-weight: bold; margin-right: 5px; }
+        .btn-insert { padding: 5px 10px; font-size: 0.85rem; border: 1px solid #0984e3; background: white; color: #0984e3; border-radius: 15px; cursor: pointer; }
+        .btn-insert:hover { background: #0984e3; color: white; }
+        .btn-insert.header { border-color: #fdcb6e; color: #e17055; }
+        .btn-insert.header:hover { background: #fdcb6e; color: white; }
+        .btn-insert.pagebreak { border-color: #636e72; color: #2d3436; border-style: dashed; }
+        .btn-insert.pagebreak:hover { background: #b2bec3; }
+        .btn-insert.drawBox { border-color: #00b894; color: #00b894; }
+        .btn-insert.drawBox:hover { background: #00b894; color: white; }
+
+        .btn-add-group { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; position: sticky; top: 0; z-index: 10; padding: 10px 0; background: #f5f6fa; flex-wrap: wrap;}
+        .btn-add { padding: 8px 15px; border-radius: 20px; border: 1px solid #b2bec3; background: white; cursor: pointer; font-weight: bold; }
+        .btn-add:hover { background: #74b9ff; color: white; }
+        .btn-add-header { border-color: #fdcb6e; color: #e17055; }
+        .btn-add-break { border-color: #2d3436; color: #2d3436; border-style: dashed; }
+        .btn-add-break:hover { background: #dfe6e9; }
+        .btn-add-draw { border-color: #00b894; color: #00b894; }
+        .btn-add-draw:hover { background: #00b894; color: white; }
+
+        /* 多圖上傳樣式 */
+        .img-gallery { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .img-thumb-wrapper { position: relative; border: 1px solid #ccc; border-radius: 4px; overflow: hidden; height: 80px; width: 80px; display: flex; align-items: center; justify-content: center; background: #fff; }
+        .img-thumb-wrapper img { max-width: 100%; max-height: 100%; }
+        .btn-del-img { position: absolute; top: 0; right: 0; background: rgba(255,0,0,0.8); color: white; border: none; font-size: 12px; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .upload-placeholder { width: 80px; height: 80px; border: 2px dashed #ccc; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #999; font-size: 0.8rem; background: #fafafa; }
+        .upload-placeholder:hover { border-color: #0984e3; color: #0984e3; background: #f0f8ff; }
+
+        /* --- 考卷 CSS --- */
+        .quiz-unit { width: 100%; box-sizing: border-box; font-family: 'Andika', sans-serif; }
+        .quiz-header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #2d3436; padding-bottom: 8px; }
+        .quiz-title { font-size: 24px; font-weight: bold; margin-bottom: 8px; font-family: "Microsoft JhengHei", sans-serif; }
+        .student-info { display: flex; justify-content: space-between; font-size: 14px; margin-top: 10px; }
+        .info-line { border-bottom: 1px solid #000; padding: 0 5px; font-weight: bold; color: blue; }
+
+        .question-list { padding-left: 45px; margin: 0; list-style: none; }
+        .question-list.two-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; align-items: start; }
+        .question-list.two-cols .question-item.span-full { grid-column: 1 / -1; }
+
+        .section-header {
+            font-family: "Microsoft JhengHei", sans-serif; font-size: 16pt; font-weight: bold;
+            margin-top: 12px; margin-bottom: 6px; border-bottom: 1px dashed #b2bec3;
+            padding-bottom: 3px; list-style: none; width: 100%; margin-left: 0; 
+        }
+
+        .question-item { 
+            font-size: 14pt; line-height: 1.4; margin-bottom: 5px; 
+            page-break-inside: avoid; break-inside: avoid; position: relative; overflow: visible; 
+        }
+        .question-item::before {
+            content: attr(value) "."; position: absolute; left: -35px; top: 0;
+            width: 30px; text-align: right; font-weight: bold; font-family: 'Andika', sans-serif; color: #2d3436;
+        }
+
+        /* 修改 line-height 將同一題換行的間距縮小為 3.2，並保持 margin-bottom 縮小題與題間距 */
+        .grade-lower .question-item.loose-spacing { font-size: 24px; line-height: 3.2; margin-bottom: 5px; }
+        .grade-lower .question-item.loose-spacing::before { top: 18px; }
+
+        /* --- 題目內容容器與佈局修正 --- */
+        .q-item-wrapper { display: block; }
+        
+        .q-item-wrapper.inline-mode { display: flex; align-items: flex-start; gap: 15px; width: 100%; }
+        
+        .q-image-float-container {
+            float: left;
+            margin-right: 15px;
+            margin-bottom: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .clearfix::after { content: ""; display: table; clear: both; }
+
+        .q-text-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        
+        /* 選擇題選項樣式 */
+        .mc-options { display: flex; gap: 15px; font-size: 14pt; margin-top: 5px; align-items: baseline; flex-wrap: wrap; }
+        
+        .mc-option-item { 
+            display: inline-flex; 
+            flex-direction: column; 
+            vertical-align: top; 
+            align-items: flex-start; 
+        }
+        
+        .mc-option-img { 
+            max-height: 80px; 
+            width: auto; 
+            max-width: 100%; 
+            object-fit: contain;
+            border: 1px solid #ddd; 
+            margin-bottom: 3px; 
+            border-radius: 4px; 
+            display: block; 
+        }
+        
+        .ans-bracket { font-family: 'Andika', sans-serif; font-weight: bold; margin-right: 5px; white-space: nowrap; }
+
+        .q-image-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 5px; flex-shrink: 0; }
+        .q-item-wrapper.inline-mode .q-image-container, .q-inline-top .q-image-container { margin-bottom: 0; }
+        .q-image-container img { display: block; border: 2px solid #ecf0f1; border-radius: 5px; }
+
+        /* --- 文件方塊樣式 --- */
+        .doc-box {
+            margin-bottom: 12px;
+            padding: 15px;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 6px;
+            font-size: 13pt;
+            line-height: 1.5;
+        }
+        .doc-box-bordered {
+            border: 2px solid #2d3436;
+            background-color: #fafafa;
+        }
+        .doc-box-borderless {
+            border: none;
+            background-color: transparent;
+            padding-left: 0;
+            padding-right: 0;
+            padding-top: 0;
+        }
+        .doc-box-text {
+            font-family: inherit;
+        }
+        .doc-box-images {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .doc-box-images img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* --- 繪圖方框樣式 --- */
+        .draw-zone {
+            border: 2px solid #2d3436;
+            background-color: #fff;
+            margin-top: 8px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .draw-zone.show-ref {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .draw-ref-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            opacity: 0.9;
+        }
+        
+        .draw-ref-text {
+            color: #d63031;
+            font-weight: bold;
+            font-size: 1.2rem;
+            text-align: center;
+            padding: 10px;
+        }
+
+        /* --- 配對題樣式 (Grid System) --- */
+        .matching-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            column-gap: 140px; 
+            row-gap: 15px; 
+            margin-top: 5px; 
+            width: 100%;
+            position: relative; 
+        }
+
+        .match-pair-left { display: flex; justify-content: space-between; align-items: center; height: 100%; padding-right: 5px; z-index: 2; position: relative;}
+        .match-pair-right { display: flex; justify-content: flex-start; align-items: center; gap: 15px; height: 100%; padding-left: 5px; z-index: 2; position: relative;}
+        
+        .code-box { 
+            display: inline-flex; align-items: center; justify-content: center; 
+            width: 40px; border-bottom: 1.5px solid #000; font-family: 'Andika', sans-serif; font-weight: bold; 
+            color: #d63031; flex-shrink: 0;
+        }
+        .code-box-empty::before { content: "( )"; color: #000; font-weight: normal; letter-spacing: 5px;}
+        
+        .dot { width: 8px; height: 8px; background: #000; border-radius: 50%; display: inline-block; flex-shrink: 0;}
+        
+        .matching-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .match-line {
+            stroke: #d63031;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            opacity: 0.8;
+        }
+        
+        .match-img-wrapper { margin-right: 10px; display: flex; flex-direction: column; align-items: center; }
+        .match-img { max-width: 100px; max-height: 80px; border: 1px solid #ddd; border-radius: 4px; display: block; }
+        .match-text-sub { font-size: 0.9em; margin-top: 2px; text-align: center; }
+
+        /* --- 格線系統 --- */
+        .answer-box { display: inline-block; position: relative; margin: 0 5px; width: 100px; box-sizing: border-box; }
+        .line-real { position: absolute; left: 0; width: 100%; height: 1px; pointer-events: none; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+        .grade-lower .question-item.loose-spacing .answer-box { height: var(--cell-height); vertical-align: -20px; }
+        .grade-lower .question-item.loose-spacing .l1 { top: 0px;  background: #000; }
+        .grade-lower .question-item.loose-spacing .l2 { top: 20px; border-top: 1px dashed #999; height: 0; }
+        .grade-lower .question-item.loose-spacing .l3 { top: 40px; background: #e17055; height: 2px; }
+        .grade-lower .question-item.loose-spacing .l4 { top: 60px; background: #000; }
+
+        .grade-lower .question-item:not(.loose-spacing) .answer-box,
+        .grade-higher .answer-box { height: auto; border-bottom: 1.5px solid #000; vertical-align: baseline; line-height: 1.2; }
+        .grade-lower .question-item:not(.loose-spacing) .l1, .grade-lower .question-item:not(.loose-spacing) .l2, .grade-lower .question-item:not(.loose-spacing) .l3, .grade-lower .question-item:not(.loose-spacing) .l4,
+        .grade-higher .l1, .grade-higher .l2, .grade-higher .l3, .grade-higher .l4 { display: none; }
+
+        .answer-text { color: transparent; font-family: 'Andika', sans-serif; font-weight: bold; text-align: center; width: 100%; letter-spacing: 2px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .show-answer .answer-text { color: #d63031; }
+        
+        .grade-lower .question-item.loose-spacing .answer-text { position: absolute; font-size: 32px; top: 4px; left: 0; line-height: 1; z-index: 2; }
+        .grade-lower .question-item:not(.loose-spacing) .answer-text { font-size: 14pt; position: static;} 
+        .grade-higher .answer-text { font-size: 14pt; }
+
+        .show-answer .mc-correct { color: #d63031; font-weight: bold; text-decoration: none; border: 2px solid #d63031; border-radius: 50px; padding: 0px 6px; margin: -2px 0; }
+
+        @page { margin: 0; size: A4; }
+        @media print {
+            .control-panel, .modal-overlay, .btn-print-dual { display: none !important; }
+            body, .preview-area { background: white; padding: 0; margin: 0; display: block; height: auto; }
+            .paper { box-shadow: none; margin: 0; width: 100%; padding: 20mm; height: 297mm; display: block; overflow: hidden; }
+            .paper:last-of-type { page-break-after: avoid; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .show-answer .mc-correct { color: #000; border-color: #000; }
+            .show-answer .match-line { stroke: #000; stroke-width: 1.5; } 
+            .code-box { color: #000 !important; }
+            .show-answer .draw-ref-text { color: #000; border: 2px solid #000; padding: 5px; display:inline-block;}
+        }
+    </style>
+</head>
+<body>
+
+    <div class="control-panel">
+        <h2>🛠️ 測驗卷設定</h2>
+        
+        <div class="form-group"><label>測驗卷標題</label><input type="text" id="quizTitle" value="唐吉君文教機構 隨堂測驗卷" oninput="saveAndRender()"></div>
+        <div class="form-group"><label>班級名稱 (Class)</label><input type="text" id="className" placeholder="留空則顯示底線 (e.g. J1A)" oninput="saveAndRender()"></div>
+        <div class="form-group"><label>適用年級</label><select id="gradeType" onchange="saveAndRender()"><option value="lower">低年級 (有空格時強制四格線)</option><option value="higher">高年級 (緊湊模式)</option></select></div>
+        
+        <div class="file-actions">
+            <button class="btn btn-file" onclick="downloadConfig()">📥 備份題目</button>
+            <button class="btn btn-file" onclick="triggerUpload()">📤 載入備份</button>
+            <input type="file" id="fileUploader" style="display:none" onchange="uploadConfig(this)">
+            <button class="btn btn-file" style="background:#ff7675; color:white;" onclick="resetData()">🗑️ 清空重置</button>
+        </div>
+
+        <label class="toggle-switch" style="margin-top:10px;"><input type="checkbox" id="previewAnswerToggle" onchange="toggleAnswers()"><span>螢幕預覽答案</span></label>
+        
+        <div class="hint-text">
+            💡 <b>系統更新：</b><br>
+            1. 新增「附加文本方塊」功能，可替每題加入文章或閱讀對話。<br>
+            2. 文本方塊現在支援「圖片大小」與「位置對齊」的彈性調整。<br>
+            3. 繪圖方框可設定「解答圖片」或「參考文字」。<br>
+        </div>
+
+        <button class="btn btn-edit" onclick="openModal()">✏️ 編輯題目與大題</button>
+        <button class="btn btn-print-dual" onclick="printDualMode()">🖨️ 生成合併 PDF</button>
+    </div>
+
+    <div class="preview-area" id="previewContainer"></div>
+
+    <div class="modal-overlay" id="editorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📝 題目編輯器</h2>
+                <div style="font-size:0.9rem; color:green; margin-left:10px; opacity:0; transition: opacity 0.5s;" id="saveStatus">✅ 已同步存檔</div>
+                <button onclick="closeModal()" style="font-size:1.5rem; border:none; background:none; cursor:pointer; margin-left:auto;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="btn-add-group">
+                    <button class="btn-add btn-add-header" onclick="addQ('header')">➕ 新增大題</button>
+                    <button class="btn-add" onclick="addQ('text')">+ 新增填空</button>
+                    <button class="btn-add" onclick="addQ('choice')">+ 新增選擇</button>
+                    <button class="btn-add btn-add-draw" onclick="addQ('drawBox')">🖼️ 新增方框</button>
+                    <button class="btn-add" style="border-color:#6c5ce7; color:#6c5ce7;" onclick="addQ('matching')">🔗 新增配對</button>
+                    <button class="btn-add btn-add-break" onclick="addQ('pagebreak')">📄 插入分頁</button>
+                </div>
+                <div id="qList"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-edit" style="width:auto; display:inline-flex;" onclick="closeModal()">✅ 完成並更新</button></div>
+        </div>
+    </div>
+
+    <script>
+        const defaultQuestions = [];
+
+        let questions = JSON.parse(JSON.stringify(defaultQuestions));
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function compressImage(file, callback) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = event => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_WIDTH = 500; 
+                    const MAX_HEIGHT = 500;
+                    if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
+                    else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    callback(canvas.toDataURL('image/jpeg', 0.6)); 
+                }
+            }
+        }
+
+        function loadData() {
+            try {
+                if(localStorage.getItem('quizTitle')) document.getElementById('quizTitle').value = localStorage.getItem('quizTitle');
+                if(localStorage.getItem('className')) document.getElementById('className').value = localStorage.getItem('className');
+                if(localStorage.getItem('gradeType')) document.getElementById('gradeType').value = localStorage.getItem('gradeType');
+                if(localStorage.getItem('quizQuestions')) questions = JSON.parse(localStorage.getItem('quizQuestions'));
+                
+                questions.forEach(q => {
+                    if (q.image && !q.images) { q.images = [q.image]; delete q.image; }
+                    if (!q.images) q.images = [];
+                    if (q.type === 'choice' && !q.optionImages) {
+                         q.optionImages = new Array(q.options.length).fill(null);
+                    }
+                    if (typeof q.hasDocBox === 'undefined') q.hasDocBox = false;
+                    if (typeof q.docBoxBorder === 'undefined') q.docBoxBorder = true;
+                    if (!q.docBoxImages) q.docBoxImages = [];
+                    if (!q.docBoxText) q.docBoxText = '';
+                    if (typeof q.docBoxImgWidth === 'undefined') q.docBoxImgWidth = 200;
+                    if (typeof q.docBoxImgAlign === 'undefined') q.docBoxImgAlign = 'flex-start';
+                });
+            } catch(e) {
+                questions = JSON.parse(JSON.stringify(defaultQuestions));
+            }
+        }
+
+        function saveAndRender() {
+            try {
+                localStorage.setItem('quizTitle', document.getElementById('quizTitle').value);
+                localStorage.setItem('className', document.getElementById('className').value);
+                localStorage.setItem('gradeType', document.getElementById('gradeType').value);
+                localStorage.setItem('quizQuestions', JSON.stringify(questions));
+                const status = document.getElementById('saveStatus');
+                if(status) {
+                    status.style.opacity = 1;
+                    if(window.statusTimeout) clearTimeout(window.statusTimeout);
+                    window.statusTimeout = setTimeout(() => status.style.opacity = 0, 1500);
+                }
+            } catch (e) { }
+            renderPagination();
+        }
+
+        function resetData() {
+            if(!confirm("確定要清空所有題目並重置嗎？")) return;
+            localStorage.clear();
+            questions = JSON.parse(JSON.stringify(defaultQuestions));
+            location.reload();
+        }
+
+        function downloadConfig() {
+            const data = {
+                title: document.getElementById('quizTitle').value,
+                class: document.getElementById('className').value,
+                grade: document.getElementById('gradeType').value,
+                questions: questions
+            };
+            const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'english_quiz_backup.json';
+            a.click();
+        }
+
+        function triggerUpload() { document.getElementById('fileUploader').click(); }
+        function uploadConfig(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.questions) {
+                        questions = data.questions;
+                        questions.forEach(q => {
+                            if (q.image && !q.images) { q.images = [q.image]; delete q.image; }
+                            if (!q.images) q.images = [];
+                            if (q.type === 'choice' && !q.optionImages) {
+                                q.optionImages = new Array(q.options.length).fill(null);
+                            }
+                            if (typeof q.hasDocBox === 'undefined') q.hasDocBox = false;
+                            if (typeof q.docBoxBorder === 'undefined') q.docBoxBorder = true;
+                            if (!q.docBoxImages) q.docBoxImages = [];
+                            if (!q.docBoxText) q.docBoxText = '';
+                            if (typeof q.docBoxImgWidth === 'undefined') q.docBoxImgWidth = 200;
+                            if (typeof q.docBoxImgAlign === 'undefined') q.docBoxImgAlign = 'flex-start';
+                        });
+                        if(data.title) document.getElementById('quizTitle').value = data.title;
+                        if(data.class) document.getElementById('className').value = data.class;
+                        if(data.grade) document.getElementById('gradeType').value = data.grade;
+                        renderEditor(); saveAndRender(); alert("✅ 載入成功！");
+                    }
+                } catch(err) { alert("❌ 檔案格式錯誤"); }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseContent(text, grade) {
+            if (!text) return { html: '', hasGrid: false, maxW: 0 };
+            let html = text.replace(/\n/g, '<br>');
+            let hasGrid = false;
+            let maxW = 0;
+            let firstGridFound = false;
+
+            html = html.replace(/\[(.*?)\]/g, (match, p1) => {
+                hasGrid = true; 
+                let answer = p1;
+                let manualWidth = null;
+                if (p1.includes('|')) {
+                    const parts = p1.split('|');
+                    answer = parts[0].trim();
+                    const w = parseInt(parts[1]);
+                    if (!isNaN(w)) manualWidth = w;
+                }
+                const charWidth = (grade === 'lower') ? 22 : 12; 
+                const minWidth = (grade === 'lower') ? 80 : 40;
+                const width = manualWidth ? manualWidth : Math.max(minWidth, answer.length * charWidth + 20); 
+                
+                if (width > maxW) maxW = width;
+                let marker = '';
+                if (!firstGridFound) { marker = ''; firstGridFound = true; }
+
+                return `${marker}<div class="answer-box" style="width: ${width}px;">
+                            <div class="line-real l1"></div><div class="line-real l2"></div><div class="line-real l3"></div><div class="line-real l4"></div>
+                            <div class="answer-text">${answer}</div>
+                        </div>`;
+            });
+            return { html: html, hasGrid: hasGrid, maxW: maxW };
+        }
+
+        function toggleAnswers() {
+            saveAndRender();
+        }
+
+        function drawConnectors() {
+            const svgs = document.querySelectorAll('.matching-svg');
+            
+            svgs.forEach(svg => {
+                while (svg.firstChild) {
+                    svg.removeChild(svg.firstChild);
+                }
+
+                const parentPaper = svg.closest('.paper');
+                if (!parentPaper || !parentPaper.classList.contains('show-answer')) return;
+
+                const grid = svg.closest('.matching-grid');
+                if (!grid) return;
+
+                const leftWrappers = grid.querySelectorAll('.match-pair-left');
+                const rightWrappers = grid.querySelectorAll('.match-pair-right');
+
+                const svgRect = svg.getBoundingClientRect();
+
+                leftWrappers.forEach((lWrap, lIdx) => {
+                    const lDot = lWrap.querySelector('.dot');
+                    if(!lDot) return;
+                    
+                    const correctAns = lWrap.dataset.correct; 
+
+                    let targetRWrap = null;
+                    rightWrappers.forEach(rWrap => {
+                        if(rWrap.dataset.answer === correctAns) {
+                            targetRWrap = rWrap;
+                        }
+                    });
+
+                    if(targetRWrap) {
+                        const rDot = targetRWrap.querySelector('.dot');
+                        if(rDot) {
+                            const lRect = lDot.getBoundingClientRect();
+                            const rRect = rDot.getBoundingClientRect();
+
+                            const x1 = lRect.left + lRect.width/2 - svgRect.left;
+                            const y1 = lRect.top + lRect.height/2 - svgRect.top;
+                            const x2 = rRect.left + rRect.width/2 - svgRect.left;
+                            const y2 = rRect.top + rRect.height/2 - svgRect.top;
+
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', x1);
+                            line.setAttribute('y1', y1);
+                            line.setAttribute('x2', x2);
+                            line.setAttribute('y2', y2);
+                            line.setAttribute('class', 'match-line');
+                            svg.appendChild(line);
+                        }
+                    }
+                });
+            });
+        }
+
+        window.addEventListener('resize', drawConnectors);
+        window.matchMedia('print').addListener(function(mql) {
+            setTimeout(drawConnectors, 100);
+        });
+
+        function renderPagination() {
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = ''; 
+
+            const title = document.getElementById('quizTitle').value;
+            const classNameInput = document.getElementById('className').value;
+            const classDisplay = classNameInput ? classNameInput : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+            const grade = document.getElementById('gradeType').value;
+            const showAnswers = document.getElementById('previewAnswerToggle').checked;
+            const gradeClass = (grade === 'lower') ? 'grade-lower' : 'grade-higher';
+            const displayTitle = showAnswers ? `${title} <span style="color:red;font-size:0.6em;">(Teacher's Key)</span>` : title;
+
+            const parsedData = questions.map(q => ({
+                ...q, 
+                parsed: parseContent(q.content, grade)
+            }));
+
+            const headerHtml = `
+                <div class="quiz-header">
+                    <div class="quiz-title">${displayTitle}</div>
+                    <div class="student-info">
+                        <span>Class: <span class="info-line">${classDisplay}</span></span>
+                        <span>Name: <span class="info-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+                        <span>Score: <span class="info-line">&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+                    </div>
+                </div>`;
+            
+            let currentPage = createPageElement(gradeClass, showAnswers);
+            currentPage.querySelector('.quiz-unit').innerHTML = headerHtml;
+            container.appendChild(currentPage);
+            let currentUnit = currentPage.querySelector('.quiz-unit');
+            let qCounter = 0;
+            const MAX_HEIGHT = 1030; 
+            let currentLayout = '1';
+            let currentOl = document.createElement('ol');
+            currentOl.className = 'question-list';
+            currentUnit.appendChild(currentOl);
+
+            parsedData.forEach((q, idx) => {
+                if (q.type === 'pagebreak') {
+                    if (currentUnit.scrollHeight > 150) { 
+                        currentPage = createPageElement(gradeClass, showAnswers);
+                        container.appendChild(currentPage);
+                        currentUnit = currentPage.querySelector('.quiz-unit');
+                        currentOl = document.createElement('ol');
+                        currentOl.className = (currentLayout === '2') ? 'question-list two-cols' : 'question-list';
+                        currentUnit.appendChild(currentOl);
+                    }
+                    return; 
+                }
+
+                let itemHtml = '';
+                let isHeader = (q.type === 'header');
+                let useLooseSpacing = (grade === 'lower' && q.parsed.hasGrid);
+
+                if (isHeader) {
+                    currentLayout = q.layout || '1';
+                    itemHtml = `<div class="section-header">${q.content}</div>`;
+                } else {
+                    qCounter++;
+                    const imgWidth = q.imageWidth || 150;
+                    
+                    let imgTag = '';
+                    if (q.images && q.images.length > 0) {
+                        let imgsHtml = q.images.map(src => `<img src="${src}" style="width:${imgWidth}px; max-width:100%; height:auto;">`).join('');
+                        imgTag = `<div class="q-image-container">${imgsHtml}</div>`;
+                    }
+
+                    // 處理文本/文件方塊 (DocBox) 的 HTML 與樣式動態變化
+                    let docBoxHtml = '';
+                    if (q.hasDocBox && (q.docBoxText || (q.docBoxImages && q.docBoxImages.length > 0))) {
+                        const borderClass = q.docBoxBorder !== false ? 'doc-box-bordered' : 'doc-box-borderless';
+                        let dImgs = '';
+                        if (q.docBoxImages && q.docBoxImages.length > 0) {
+                            const dAlign = q.docBoxImgAlign || 'flex-start';
+                            const dImgW = q.docBoxImgWidth || 200;
+                            dImgs = `<div class="doc-box-images" style="justify-content: ${dAlign};">` + 
+                                    q.docBoxImages.map(src => `<img src="${src}" style="width:${dImgW}px; height:auto; max-height:none;">`).join('') + 
+                                    `</div>`;
+                        }
+                        let dText = q.docBoxText ? `<div class="doc-box-text">${q.docBoxText.replace(/\n/g, '<br>')}</div>` : '';
+                        docBoxHtml = `<div class="doc-box ${borderClass}">${dText}${dImgs}</div>`;
+                    }
+
+                    let liClass = 'question-item';
+                    if (useLooseSpacing) liClass += ' loose-spacing';
+                    if (currentLayout === '2' && q.parsed.maxW > 280) { liClass += ' span-full'; }
+
+                    let innerContent = '';
+                    
+                    if (q.type === 'choice') {
+                        const wrapperClass = q.imgInline ? 'q-item-wrapper inline-mode' : 'q-item-wrapper';
+                        const correctChar = String.fromCharCode(65 + q.correct);
+                        const bracketContent = showAnswers ? `&nbsp;${correctChar}&nbsp;` : '&nbsp;&nbsp;&nbsp;&nbsp;';
+                        const bracketHtml = `<span class="ans-bracket">(${bracketContent})</span>`;
+                        const questionContent = q.parsed.html;
+                        
+                        innerContent = `<div class="${wrapperClass}">${imgTag}<div class="q-text-col"><div class="q-text">${bracketHtml}${questionContent}</div><div class="mc-options">`;
+                        if(q.options && q.options.length > 0) {
+                            q.options.forEach((opt, i) => {
+                                const isCorrect = (showAnswers && i === q.correct);
+                                let optImgHtml = '';
+                                if(q.optionImages && q.optionImages[i]) {
+                                    optImgHtml = `<img src="${q.optionImages[i]}" class="mc-option-img">`;
+                                }
+                                innerContent += `<span class="mc-option-item ${isCorrect ? 'mc-correct' : ''}">${optImgHtml}<span>(${String.fromCharCode(65+i)}) ${opt}</span></span>`;
+                            });
+                        }
+                        innerContent += `</div></div></div>`;
+                    } else if (q.type === 'matching') {
+                        const isCode = (q.matchStyle === 'code');
+                        const pairs = q.pairs || [];
+                        
+                        let rightIndices = pairs.map((_, i) => i);
+                        rightIndices.sort((a, b) => (pairs[a].right || '').localeCompare(pairs[b].right || ''));
+
+                        let gridHtml = '';
+                        gridHtml += `<svg class="matching-svg"></svg>`;
+
+                        for(let i=0; i<pairs.length; i++) {
+                            const pLeft = pairs[i]; 
+                            const correctIndex = rightIndices.indexOf(i); 
+                            const correctLabel = String.fromCharCode(65 + correctIndex); 
+                            
+                            let leftContent = '';
+                            if (pLeft.leftImage) {
+                                leftContent += `<div class="match-img-wrapper"><img src="${pLeft.leftImage}" class="match-img"></div>`;
+                            }
+                            if (pLeft.left) {
+                                leftContent += `<div>${pLeft.left}</div>`;
+                            }
+
+                            if (isCode) {
+                                let codeBoxHtml;
+                                if (showAnswers) {
+                                    codeBoxHtml = `<div class="code-box" style="color:#d63031;">(${correctLabel})</div>`;
+                                } else {
+                                    codeBoxHtml = `<div class="code-box code-box-empty">&nbsp;</div>`;
+                                }
+
+                                gridHtml += `<div class="match-pair-left">
+                                                <div style="display:flex; align-items:center; gap:10px;">
+                                                    ${codeBoxHtml}
+                                                    <div style="display:flex; align-items:center;">${leftContent}</div>
+                                                </div>
+                                             </div>`;
+                            } else {
+                                gridHtml += `<div class="match-pair-left" data-correct="${pLeft.right}">
+                                                <div style="display:flex; align-items:center;">${leftContent}</div>
+                                                <div class="dot"></div>
+                                             </div>`;
+                            }
+
+                            const origIdx = rightIndices[i]; 
+                            const pRight = pairs[origIdx];
+                            const label = String.fromCharCode(65 + i);
+
+                            if (isCode) {
+                                gridHtml += `<div class="match-pair-right">
+                                                <div style="font-weight:bold;">${label}.</div>
+                                                <div>${pRight ? pRight.right : ''}</div>
+                                              </div>`;
+                            } else {
+                                gridHtml += `<div class="match-pair-right" data-answer="${pRight ? pRight.right : ''}">
+                                                <div class="dot"></div>
+                                                <div>${pRight ? pRight.right : ''}</div>
+                                              </div>`;
+                            }
+                        }
+
+                        const wrapperClass = q.imgInline ? 'q-item-wrapper inline-mode' : 'q-item-wrapper';
+                        
+                        let mainContent = `<div class="q-text">${q.content}</div>
+                                           <div class="matching-grid" data-pairs='${JSON.stringify(pairs).replace(/'/g, "&#39;")}'>${gridHtml}</div>`; 
+                        
+                        if (q.imgInline) {
+                            innerContent = `<div class="${wrapperClass}">${imgTag}<div class="q-text-col">${mainContent}</div></div>`;
+                        } else {
+                            innerContent = `<div class="${wrapperClass}">${imgTag}<div>${mainContent}</div></div>`;
+                        }
+
+                    } else if (q.type === 'drawBox') {
+                        const cleanHtml = q.parsed.html.replace('', '');
+                        
+                        let boxContent = '';
+                        let zoneClass = 'draw-zone';
+                        
+                        if (showAnswers) {
+                            zoneClass += ' show-ref';
+                            if (q.answerImage) {
+                                boxContent = `<img src="${q.answerImage}" class="draw-ref-img">`;
+                            } else if (q.answerText) {
+                                boxContent = `<div class="draw-ref-text">${q.answerText}</div>`;
+                            }
+                        }
+                        
+                        innerContent = `
+                            <div class="q-item-wrapper">
+                                ${imgTag}
+                                <div class="q-text" style="margin-bottom:5px;">${cleanHtml}</div>
+                                <div class="${zoneClass}" style="width:${q.boxWidth}px; height:${q.boxHeight}px; max-width:100%;">${boxContent}</div>
+                            </div>`;
+                    } else {
+                        const cleanHtml = q.parsed.html.replace('', '');
+                        if (q.imgInline && q.images && q.images.length > 0) {
+                             let floatImgTag = '';
+                             if (q.images && q.images.length > 0) {
+                                let imgsHtml = q.images.map(src => `<img src="${src}" style="width:${imgWidth}px; max-width:100%; height:auto;">`).join('');
+                                floatImgTag = `<div class="q-image-float-container">${imgsHtml}</div>`;
+                            }
+                            innerContent = `<div class="q-item-wrapper clearfix">${floatImgTag}<div class="q-text" style="display:inline;">${cleanHtml}</div></div>`;
+                        } else {
+                            innerContent = `<div class="q-item-wrapper">${imgTag}<div class="q-text">${cleanHtml}</div></div>`;
+                        }
+                    }
+                    // 將文本方塊加入在題目內容之前
+                    itemHtml = `<li class="${liClass}" value="${qCounter}">${docBoxHtml}${innerContent}</li>`;
+                }
+
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = itemHtml;
+                const newItem = tempDiv.firstElementChild;
+
+                if (isHeader) {
+                    currentUnit.appendChild(newItem);
+                    currentOl = document.createElement('ol');
+                    currentOl.className = (currentLayout === '2') ? 'question-list two-cols' : 'question-list';
+                    currentUnit.appendChild(currentOl);
+                } else {
+                    if (!currentUnit.contains(currentOl)) {
+                         currentOl = document.createElement('ol');
+                         currentOl.className = (currentLayout === '2') ? 'question-list two-cols' : 'question-list';
+                         currentUnit.appendChild(currentOl);
+                    }
+                    currentOl.appendChild(newItem);
+                }
+
+                const currentHeight = currentUnit.scrollHeight;
+                let overflow = currentHeight > MAX_HEIGHT;
+                if (!overflow && isHeader) { if ((MAX_HEIGHT - currentHeight) < 150) { overflow = true; } }
+
+                if (overflow) {
+                    newItem.remove();
+                    if (currentOl.children.length === 0) currentOl.remove();
+                    currentPage = createPageElement(gradeClass, showAnswers);
+                    container.appendChild(currentPage);
+                    currentUnit = currentPage.querySelector('.quiz-unit');
+                    if (isHeader) {
+                        currentUnit.appendChild(newItem);
+                        currentOl = document.createElement('ol');
+                        currentOl.className = (currentLayout === '2') ? 'question-list two-cols' : 'question-list';
+                        currentUnit.appendChild(currentOl);
+                    } else {
+                        currentOl = document.createElement('ol');
+                        currentOl.className = (currentLayout === '2') ? 'question-list two-cols' : 'question-list';
+                        currentOl.appendChild(newItem);
+                        currentUnit.appendChild(currentOl);
+                    }
+                }
+            });
+
+            setTimeout(drawConnectors, 50);
+        }
+
+        function createPageElement(gradeClass, showAnswers) {
+            let div = document.createElement('div');
+            div.className = `paper ${showAnswers ? 'show-answer' : ''}`;
+            div.innerHTML = `<div class="quiz-unit ${gradeClass}"></div>`;
+            return div;
+        }
+
+        function printDualMode() {
+            const container = document.getElementById('previewContainer');
+            const toggle = document.getElementById('previewAnswerToggle');
+            const originalState = toggle.checked;
+            toggle.checked = false;
+            saveAndRender(); 
+            const studentPages = container.innerHTML;
+            toggle.checked = true;
+            saveAndRender(); 
+            const teacherPages = container.innerHTML;
+            container.innerHTML = studentPages + teacherPages;
+            
+            setTimeout(() => { 
+                drawConnectors(); 
+                setTimeout(() => { window.print(); }, 200);
+            }, 100);
+
+            const restoreUI = () => {
+                toggle.checked = originalState;
+                saveAndRender();
+                window.removeEventListener("afterprint", restoreUI);
+            };
+            window.addEventListener("afterprint", restoreUI);
+        }
+        
+        function openModal() { document.getElementById('editorModal').classList.add('active'); renderEditor(); }
+        function closeModal() { document.getElementById('editorModal').classList.remove('active'); saveAndRender(); }
+        
+        function addQ(type, index = -1) {
+            const base = { 
+                type: type, content: '', images: [], imageWidth: 150, imgInline: false,
+                hasDocBox: false, docBoxText: '', docBoxBorder: true, docBoxImages: [],
+                docBoxImgWidth: 200, docBoxImgAlign: 'flex-start'
+            };
+            if(type === 'header') { base.content = 'Part ...'; base.layout = '1'; } 
+            if(type === 'text') base.content = 'Example: [apple]';
+            if(type === 'choice') { 
+                base.content = '在此輸入題目或閱讀短文...'; 
+                base.options = ['Option A','Option B','Option C']; 
+                base.optionImages = [null, null, null];
+                base.correct = 0; 
+            }
+            if(type === 'matching') { 
+                base.content = 'Match the items:'; 
+                base.matchStyle = 'code'; 
+                base.pairs = [{left:'Apple', leftImage: null, right:'蘋果'}, {left:'Banana', leftImage: null, right:'香蕉'}]; 
+            }
+            if(type === 'drawBox') {
+                base.content = 'Draw a picture in the box below:';
+                base.boxWidth = 400;
+                base.boxHeight = 200;
+                base.answerImage = null; 
+                base.answerText = ''; 
+            }
+            if(type === 'pagebreak') { base.content = '--- 分頁符號 (此處將強制換頁) ---'; }
+            
+            if (index === -1) questions.push(base);
+            else questions.splice(index + 1, 0, base);
+            renderEditor(); saveAndRender();
+            if (index === -1) setTimeout(() => { const mb = document.querySelector('.modal-body'); mb.scrollTop = mb.scrollHeight; }, 100);
+        }
+        function removeQ(idx) { if(confirm('確定刪除此題嗎？')) { questions.splice(idx, 1); renderEditor(); saveAndRender(); } }
+
+        function renderEditor() {
+            const list = document.getElementById('qList');
+            list.innerHTML = '';
+            let displayCounter = 0;
+            questions.forEach((q, i) => {
+                if (q.type !== 'header' && q.type !== 'pagebreak') displayCounter++;
+                let cardClass = 'question-card active';
+                if (q.type === 'header') cardClass += ' type-header';
+                if (q.type === 'pagebreak') cardClass += ' type-pagebreak';
+                if (q.type === 'drawBox') cardClass += ' type-drawBox';
+
+                const div = document.createElement('div');
+                div.className = cardClass;
+                
+                const imgVal = q.imageWidth || 150;
+                const inlineChecked = q.imgInline ? 'checked' : '';
+                
+                if (!q.images) q.images = [];
+                if (q.type === 'choice' && !q.optionImages) {
+                    q.optionImages = new Array(q.options.length).fill(null);
+                }
+
+                // --- DocBox 配置介面 ---
+                let docBoxConfigHtml = '';
+                if (q.type !== 'header' && q.type !== 'pagebreak') {
+                    const hasDocChecked = q.hasDocBox ? 'checked' : '';
+                    const borderChecked = q.docBoxBorder !== false ? 'checked' : ''; 
+                    
+                    if (!q.docBoxImages) q.docBoxImages = [];
+                    let docImgGallery = '';
+                    if (q.docBoxImages.length > 0) {
+                        docImgGallery = q.docBoxImages.map((src, imgIdx) => `
+                            <div class="img-thumb-wrapper" style="width:60px; height:60px;">
+                                <img src="${src}">
+                                <button class="btn-del-img" onclick="deleteDocBoxImg(${i}, ${imgIdx})">×</button>
+                            </div>
+                        `).join('');
+                    }
+                    const docUploadBtn = (q.docBoxImages.length < 5) ? `
+                        <label class="upload-placeholder" style="width:60px; height:60px; margin:0;">
+                            <span style="font-size:1.2rem;">+</span>
+                            <input type="file" accept="image/*" onchange="uploadDocBoxImg(${i}, this)" style="display:none;">
+                        </label>
+                    ` : '';
+
+                    const dImgW = q.docBoxImgWidth || 200;
+                    const dImgAlign = q.docBoxImgAlign || 'flex-start';
+
+                    docBoxConfigHtml = `
+                        <div style="margin-bottom:10px; background:#e8f4f8; padding:10px; border-radius:6px; border:1px solid #bce0fd;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-weight:bold; color:#0984e3;">
+                                <input type="checkbox" ${hasDocChecked} onchange="updateData(${i}, 'hasDocBox', this.checked)"> 
+                                📄 附加文本方塊 (可輸入閱讀測驗文章或提示)
+                            </label>
+                            ${q.hasDocBox ? `
+                                <div style="margin-top:10px; border-top:1px dashed #bce0fd; padding-top:10px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                        <label style="margin:0;">方塊內容:</label>
+                                        <label style="font-size:0.85rem; cursor:pointer;"><input type="checkbox" ${borderChecked} onchange="updateData(${i}, 'docBoxBorder', this.checked)"> 顯示外框</label>
+                                    </div>
+                                    <textarea class="editor-textarea" style="width:100%; margin-bottom:10px;" placeholder="在此輸入文章、對話或提示說明..." oninput="updateData(${i}, 'docBoxText', this.value)">${escapeHtml(q.docBoxText || '')}</textarea>
+                                    
+                                    <label style="font-size:0.85rem;">附加方塊圖片 (${q.docBoxImages.length}/5):</label>
+                                    <div class="img-gallery" style="margin-top:5px;">
+                                        ${docImgGallery}
+                                        ${docUploadBtn}
+                                    </div>
+                                    
+                                    ${q.docBoxImages.length > 0 ? `
+                                    <div style="display:flex; align-items:center; gap:15px; margin-top:10px; background:#fff; padding:8px; border-radius:4px; border:1px solid #ccc;">
+                                        <div style="flex:1;">
+                                            <label style="font-size:0.8rem;">圖片寬度: ${dImgW}px</label>
+                                            <input type="range" min="50" max="600" step="10" value="${dImgW}" style="width:100%;" oninput="updateData(${i}, 'docBoxImgWidth', this.value)">
+                                        </div>
+                                        <div style="flex:1;">
+                                            <label style="font-size:0.8rem;">對齊方式:</label>
+                                            <select onchange="updateData(${i}, 'docBoxImgAlign', this.value)" style="width:100%; padding:5px; border:1px solid #ccc; border-radius:4px;">
+                                                <option value="flex-start" ${dImgAlign==='flex-start'?'selected':''}>靠左</option>
+                                                <option value="center" ${dImgAlign==='center'?'selected':''}>置中</option>
+                                                <option value="flex-end" ${dImgAlign==='flex-end'?'selected':''}>靠右</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+                // -----------------------
+
+                let imgGalleryHtml = '';
+                if (q.images.length > 0) {
+                    imgGalleryHtml = q.images.map((src, imgIdx) => `
+                        <div class="img-thumb-wrapper">
+                            <img src="${src}">
+                            <button class="btn-del-img" onclick="deleteImg(${i}, ${imgIdx})">×</button>
+                        </div>
+                    `).join('');
+                }
+                
+                const uploadBtnHtml = (q.images.length < 5) ? `
+                    <label class="upload-placeholder">
+                        <span style="font-size:1.5rem;">+</span>
+                        <span>上傳圖片</span>
+                        <input type="file" accept="image/*" onchange="uploadImg(${i}, this)" style="display:none;">
+                    </label>
+                ` : '';
+
+                const imgUploadHtml = `
+                    <div style="margin-bottom:10px; background:#f0f2f5; padding:8px; border-radius:5px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label style="margin:0;">🖼️ 題目圖片 (${q.images.length}/5)</label>
+                            ${q.images.length > 0 ? `<label style="font-size:0.85rem; display:flex; align-items:center; gap:5px; cursor:pointer; background:#fff; padding:3px 8px; border-radius:10px; border:1px solid #ccc;"><input type="checkbox" ${inlineChecked} onchange="updateData(${i}, 'imgInline', this.checked)"> 圖片與文字並排 (填空題自動環繞)</label>` : ''}
+                        </div>
+                        
+                        <div class="img-gallery">
+                            ${imgGalleryHtml}
+                            ${uploadBtnHtml}
+                        </div>
+
+                        ${q.images.length > 0 ? `
+                            <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:0.8rem;">圖片顯示寬度: ${imgVal}px</label>
+                                    <input type="range" min="50" max="400" step="10" value="${imgVal}" style="width:100%;" oninput="updateData(${i}, 'imageWidth', this.value)">
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>`;
+
+                let inputs = '';
+                const safeContent = escapeHtml(q.content);
+                
+                if(q.type === 'pagebreak') {
+                    inputs = `<div style="text-align:center; color:#2d3436; font-weight:bold; padding:10px;">------------ 強制分頁符號 ------------<br><span style="font-size:0.8rem; font-weight:normal;">(預覽與列印時，此線下方的題目將移至新頁面)</span></div>`;
+                }
+                else if(q.type === 'header') {
+                    const layoutVal = q.layout || '1';
+                    const layoutSelect = `
+                        <div style="margin-top:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;">
+                            <label style="color:#e67e22;">此區塊試題排列方式：</label>
+                            <select onchange="updateData(${i}, 'layout', this.value)" style="border-color:#e67e22;">
+                                <option value="1" ${layoutVal==='1'?'selected':''}>單欄排列 (預設)</option>
+                                <option value="2" ${layoutVal==='2'?'selected':''}>雙欄並排 (節省空間)</option>
+                            </select>
+                        </div>
+                    `;
+                    inputs = `<label>大題標題文字</label><input type="text" value="${safeContent}" style="font-weight:bold;" oninput="updateData(${i}, 'content', this.value)">${layoutSelect}`;
+                }
+                else if(q.type === 'drawBox') {
+                    inputs = `
+                        ${imgUploadHtml}
+                        <label>題目文字</label>
+                        <input type="text" value="${safeContent}" oninput="updateData(${i}, 'content', this.value)">
+                        
+                        <div style="background:#e0f7fa; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #b2ebf2;">
+                            <label style="color:#00838f;">方框設定：</label>
+                            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                                <div style="flex:1; min-width:150px;">
+                                    <label style="font-size:0.8rem;">方框寬度 (Width): ${q.boxWidth}px</label>
+                                    <input type="range" min="100" max="700" step="10" value="${q.boxWidth}" style="width:100%;" oninput="updateData(${i}, 'boxWidth', this.value)">
+                                </div>
+                                <div style="flex:1; min-width:150px;">
+                                    <label style="font-size:0.8rem;">方框高度 (Height): ${q.boxHeight}px</label>
+                                    <input type="range" min="50" max="600" step="10" value="${q.boxHeight}" style="width:100%;" oninput="updateData(${i}, 'boxHeight', this.value)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background:#fff3e0; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #ffe0b2;">
+                            <label style="color:#e67e22;">🔑 參考答案設定 (預覽答案時顯示)：</label>
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:0.8rem;">解答文字 (選填):</label>
+                                <input type="text" value="${q.answerText || ''}" placeholder="例如: 畫出一顆紅色的蘋果" oninput="updateData(${i}, 'answerText', this.value)">
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                ${q.answerImage ? 
+                                    `<div style="border:1px solid #ccc; padding:2px; background:white;"><img src="${q.answerImage}" style="height:50px;"></div>
+                                     <button onclick="updateData(${i}, 'answerImage', null)" style="color:red; background:none; border:none; cursor:pointer;">刪除圖片</button>` 
+                                    : `<label style="cursor:pointer; background:white; border:1px solid #ccc; padding:4px 8px; border-radius:4px; font-size:0.8rem;">
+                                        📷 上傳解答圖片
+                                        <input type="file" accept="image/*" style="display:none;" onchange="uploadAnswerImg(${i}, this)">
+                                       </label>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                }
+                else if(q.type === 'choice') {
+                    const optionsHtml = q.options.map((opt, optI) => {
+                        let optImgPreview = '';
+                        if(q.optionImages && q.optionImages[optI]) {
+                            optImgPreview = `<div style="margin:5px 0 0 30px;"><img src="${q.optionImages[optI]}" style="height:40px; width:auto; border:1px solid #ccc;"> <button onclick="deleteOptImg(${i}, ${optI})" style="color:red; background:none; border:none; cursor:pointer; font-size:0.8rem;">刪除圖片</button></div>`;
+                        }
+
+                        return `
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="display:flex; align-items:center; cursor:pointer;" title="設為正確答案">
+                                    <input type="radio" name="c_${i}" ${q.correct===optI?'checked':''} onchange="updateData(${i}, 'correct', ${optI})">
+                                </div>
+                                <div style="font-weight:bold; color:#636e72; width:20px;">${String.fromCharCode(65+optI)}.</div>
+                                <input type="text" value="${escapeHtml(opt)}" style="flex:1;" placeholder="選項內容 (可輸入長句)" oninput="updateOpt(${i}, ${optI}, this.value)">
+                                <label style="cursor:pointer;" title="上傳選項圖片">
+                                    📷
+                                    <input type="file" accept="image/*" style="display:none;" onchange="uploadOptImg(${i}, ${optI}, this)">
+                                </label>
+                                <button onclick="removeOpt(${i}, ${optI})" style="background:#dfe6e9; color:#636e72; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer; font-weight:bold;" title="刪除此選項">×</button>
+                            </div>
+                            ${optImgPreview}
+                        </div>
+                    `}).join('');
+
+                    inputs = `
+                        ${imgUploadHtml}
+                        <div style="margin-bottom:10px;">
+                            <label>題目文字 / 閱讀短文 (可換行)</label>
+                            <textarea class="editor-textarea" oninput="updateData(${i}, 'content', this.value)" placeholder="在此輸入題目...">${safeContent}</textarea>
+                        </div>
+                        <div style="background:#f1f2f6; padding:10px; border-radius:6px;">
+                            <label style="margin-bottom:8px;">選項設定 (請勾選正確答案)</label>
+                            ${optionsHtml}
+                            <button onclick="addOpt(${i})" style="width:100%; padding:6px; background:white; border:1px dashed #b2bec3; color:#0984e3; cursor:pointer; border-radius:4px; margin-top:5px; font-size:0.9rem;">+ 新增選項</button>
+                        </div>`;
+                }
+                else if(q.type === 'matching') {
+                    const isCode = q.matchStyle === 'code';
+                    const pairsHtml = q.pairs.map((p, pIdx) => `
+                        <div style="display:flex; gap:10px; margin-bottom:5px; align-items:center; border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <div style="flex:1;">
+                                <div style="margin-bottom:2px;">
+                                    ${p.leftImage ? 
+                                        `<img src="${p.leftImage}" style="height:40px; border:1px solid #ccc; vertical-align:middle; margin-right:5px;">
+                                         <button onclick="updatePair(${i}, ${pIdx}, 'leftImage', null)" style="font-size:0.7rem; color:red; border:none; background:none; cursor:pointer;">❌ 刪除圖片</button>` 
+                                        : `<input type="file" accept="image/*" onchange="uploadPairImg(${i}, ${pIdx}, this)" style="font-size:0.8rem;">`
+                                    }
+                                </div>
+                                <input type="text" placeholder="左側文字 (或上方選圖)" value="${escapeHtml(p.left)}" oninput="updatePair(${i}, ${pIdx}, 'left', this.value)" style="font-size:0.9rem;">
+                            </div>
+                            <div style="font-weight:bold;">↔</div>
+                            <div style="flex:1;"><input type="text" placeholder="右側對應答案" value="${escapeHtml(p.right)}" oninput="updatePair(${i}, ${pIdx}, 'right', this.value)"></div>
+                            <button onclick="removePair(${i}, ${pIdx})" style="background:#fab1a0; border:none; border-radius:4px; color:#d63031; cursor:pointer;">×</button>
+                        </div>
+                    `).join('');
+                    
+                    inputs = `
+                        ${imgUploadHtml}
+                        <div style="margin-bottom:10px;">
+                            <label>題目說明 (例如: Match the items)</label>
+                            <input type="text" value="${safeContent}" oninput="updateData(${i}, 'content', this.value)">
+                        </div>
+                        <div style="background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2; margin-bottom:10px;">
+                            <label style="color:#e67e22;">配對模式：</label>
+                            <select onchange="updateData(${i}, 'matchStyle', this.value)">
+                                <option value="code" ${isCode?'selected':''}>代碼配對 (填入 A, B, C...)</option>
+                                <option value="line" ${!isCode?'selected':''}>連線配對 (左右畫線)</option>
+                            </select>
+                        </div>
+                        <label>配對項目 (左側可選圖片，右側會自動隨機排列)</label>
+                        <div style="background:#f1f2f6; padding:10px; border-radius:6px;">
+                            ${pairsHtml}
+                            <button onclick="addPair(${i})" style="width:100%; padding:5px; background:#fff; border:1px dashed #ccc; color:#0984e3; cursor:pointer; margin-top:5px;">+ 新增一組配對</button>
+                        </div>
+                    `;
+                }
+                else {
+                    inputs = `${imgUploadHtml}<textarea class="editor-textarea" style="width:100%; padding:8px;" oninput="updateData(${i}, 'content', this.value)">${safeContent}</textarea>`;
+                }
+                
+                let titleLabel = q.type === 'header' ? '大題標題 (分區設定)' : (q.type === 'pagebreak' ? '分頁設定' : `# 題目 ${displayCounter} (${q.type === 'matching' ? '配對' : (q.type === 'drawBox' ? '繪圖框' : q.type.toUpperCase())})`);
+                const insertBar = `<div class="insert-bar"><span class="insert-label">在此題後插入:</span><button class="btn-insert" onclick="addQ('text', ${i})">填空</button><button class="btn-insert" onclick="addQ('matching', ${i})">配對</button><button class="btn-insert" onclick="addQ('choice', ${i})">選擇</button><button class="btn-insert drawBox" onclick="addQ('drawBox', ${i})">繪圖框</button><button class="btn-insert header" onclick="addQ('header', ${i})">大題標題</button><button class="btn-insert pagebreak" onclick="addQ('pagebreak', ${i})">分頁</button></div>`;
+                
+                div.innerHTML = `<button class="btn-delete" onclick="removeQ(${i})">刪除</button><div style="font-weight:bold; color:#636e72; margin-bottom:10px;">${titleLabel}</div>${docBoxConfigHtml}${inputs}${insertBar}`;
+                list.appendChild(div);
+            });
+        }
+
+        window.updateData = (i, k, v) => { 
+            questions[i][k] = v; 
+            saveAndRender(); 
+            if(['imageWidth', 'imgInline', 'matchStyle', 'boxWidth', 'boxHeight', 'answerImage', 'hasDocBox', 'docBoxBorder', 'docBoxImgWidth', 'docBoxImgAlign'].includes(k)) {
+                renderEditor(); 
+            }
+        };
+        window.updateOpt = (i, oi, v) => { questions[i].options[oi] = v; saveAndRender(); };
+        
+        window.addOpt = (i) => { 
+            questions[i].options.push(''); 
+            if(!questions[i].optionImages) questions[i].optionImages = [];
+            questions[i].optionImages.push(null);
+            renderEditor(); saveAndRender(); 
+        };
+        
+        window.removeOpt = (i, oi) => { 
+            if(questions[i].options.length <= 2) { alert('至少需要保留兩個選項'); return; }
+            questions[i].options.splice(oi, 1);
+            if(questions[i].optionImages) questions[i].optionImages.splice(oi, 1);
+            if(questions[i].correct >= questions[i].options.length) questions[i].correct = 0; 
+            renderEditor(); saveAndRender(); 
+        };
+
+        window.uploadOptImg = (i, oi, el) => {
+            if(el.files[0]) {
+                compressImage(el.files[0], (base64) => {
+                    if(!questions[i].optionImages) questions[i].optionImages = new Array(questions[i].options.length).fill(null);
+                    questions[i].optionImages[oi] = base64;
+                    renderEditor();
+                    saveAndRender();
+                });
+            }
+        };
+        
+        window.uploadAnswerImg = (i, el) => {
+            if(el.files[0]) {
+                compressImage(el.files[0], (base64) => {
+                    questions[i].answerImage = base64;
+                    renderEditor();
+                    saveAndRender();
+                });
+            }
+        };
+
+        window.deleteOptImg = (i, oi) => {
+             if(questions[i].optionImages) {
+                 questions[i].optionImages[oi] = null;
+                 renderEditor();
+                 saveAndRender();
+             }
+        };
+
+        window.updatePair = (i, pi, k, v) => { questions[i].pairs[pi][k] = v; saveAndRender(); if(k==='leftImage') renderEditor();};
+        window.addPair = (i) => { questions[i].pairs.push({left:'', leftImage:null, right:''}); renderEditor(); saveAndRender(); };
+        window.removePair = (i, pi) => { questions[i].pairs.splice(pi, 1); renderEditor(); saveAndRender(); };
+        
+        window.uploadImg = (i, el) => { 
+            if(el.files[0]) { 
+                compressImage(el.files[0], (base64) => { 
+                    if (!questions[i].images) questions[i].images = [];
+                    questions[i].images.push(base64);
+                    renderEditor(); 
+                    saveAndRender(); 
+                }); 
+            }
+        };
+        window.deleteImg = (i, imgIdx) => {
+            if(confirm("確定刪除這張圖片嗎？")) {
+                questions[i].images.splice(imgIdx, 1);
+                renderEditor();
+                saveAndRender();
+            }
+        };
+        
+        window.uploadDocBoxImg = (i, el) => { 
+            if(el.files[0]) { 
+                compressImage(el.files[0], (base64) => { 
+                    if (!questions[i].docBoxImages) questions[i].docBoxImages = [];
+                    questions[i].docBoxImages.push(base64);
+                    renderEditor(); 
+                    saveAndRender(); 
+                }); 
+            }
+        };
+        window.deleteDocBoxImg = (i, imgIdx) => {
+            if(confirm("確定刪除這張文件方塊圖片嗎？")) {
+                questions[i].docBoxImages.splice(imgIdx, 1);
+                renderEditor();
+                saveAndRender();
+            }
+        };
+
+        window.uploadPairImg = (i, pi, el) => { if(el.files[0]) { compressImage(el.files[0], (base64) => { questions[i].pairs[pi].leftImage = base64; renderEditor(); saveAndRender(); }); }};
+
+        loadData();
+        renderEditor();
+        saveAndRender();
+    </script>
+</body>
+</html>
